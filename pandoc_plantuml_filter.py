@@ -9,11 +9,17 @@ Needs `plantuml.jar` from http://plantuml.com/.
 import os
 import sys
 import subprocess
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 from pandocfilters import toJSONFilter, Para, Image
 from pandocfilters import get_filename4code, get_caption, get_extension
 
-PLANTUML_BIN = os.environ.get('PLANTUML_BIN', 'plantuml')
+JAVA_BIN = os.environ.get('JAVA_BIN', 'java')
+PLANTUML_JAR = os.environ.get('PLANTUML_BIN', os.path.expanduser('~/.local/bin/plantuml.jar'))
+PLANTUML_OPTS = os.environ.get('PLANTUML_OPTS', '-charset utf-8')
+PLANTUML_OPTS = PLANTUML_OPTS.split(' ')
 
 
 def rel_mkdir_symlink(src, dest):
@@ -36,7 +42,7 @@ def plantuml(key, value, format_, _):
             caption, typef, keyvals = get_caption(keyvals)
 
             filename = get_filename4code("plantuml", code)
-            filetype = get_extension(format_, "png", html="svg", latex="png")
+            filetype = get_extension(format_, "svg", html="svg", latex="svg")
 
             src = filename + '.uml'
             dest = filename + '.' + filetype
@@ -49,9 +55,15 @@ def plantuml(key, value, format_, _):
                 with open(src, "wb") as f:
                     f.write(txt)
 
-                subprocess.check_call(PLANTUML_BIN.split() +
-                                      ["-t" + filetype, src])
-                sys.stderr.write('Created image ' + dest + '\n')
+                params = [
+                    JAVA_BIN,
+                    '-jar',
+                    PLANTUML_JAR
+                ] + PLANTUML_OPTS
+                params = params + [f'-t{filetype}', src]
+                logging.debug(params)
+                subprocess.check_call(params)
+                logging.info('Created image ' + dest + '\n')
 
             # Update symlink each run
             for ind, keyval in enumerate(keyvals):
